@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate QR Studio - Live Logs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --label-color: #475569;
+            --border-color: #cbd5e1;
+            --output-bg: #f8fafc;
+        }
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #31103f 100%);
+            --card-bg: #1e293b;
+            --text-color: #f1f5f9;
+            --label-color: #94a3b8;
+            --border-color: #475569;
+            --output-bg: #0f172a;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 480px;
+            box-sizing: border-box;
+            color: var(--text-color);
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h2 { margin: 0; font-size: 18px; }
+        .theme-toggle { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 15px; background: var(--output-bg); padding: 4px; border-radius: 8px; }
+        .tab-btn { flex: 1; background: none; border: none; padding: 7px 4px; font-weight: 600; border-radius: 6px; cursor: pointer; color: var(--label-color); font-size: 12px; text-align: center; }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 12px; font-weight: 600; color: var(--label-color); margin-bottom: 4px; }
+        input, select, textarea { width: 100%; padding: 9px 10px; font-size: 14px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); border-radius: 8px; box-sizing: border-box; outline: none; }
+        .row { display: flex; gap: 10px; }
+        .row .form-group { flex: 1; }
+        .color-pickers { display: flex; justify-content: space-between; gap: 10px; }
+        .color-picker-box { flex: 1; display: flex; align-items: center; }
+        .color-picker-box input[type="color"] { border: none; width: 100%; height: 32px; cursor: pointer; padding: 0; background: none; }
+        #qrcode-container { display: flex; flex-direction: column; align-items: center; margin-top: 15px; padding: 12px; background: var(--output-bg); border-radius: 12px; border: 1px dashed var(--border-color); position: relative; }
+        #qrcode { padding: 8px; background: #fff; border-radius: 8px; position: relative; display: inline-block; }
+        #qrLogoPreview { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 35px; height: 35px; object-fit: contain; background: white; border-radius: 4px; padding: 2px; display: none; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 10px; }
+        .btn { background: var(--primary-color); color: white; border: none; padding: 9px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; }
+        .btn-secondary { background: #0ea5e9; }
+        .btn-dark { background: #475569; }
+        
+        .dashboard-card { background: var(--output-bg); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 12px; }
+        .stat-number { font-size: 24px; font-weight: bold; color: #059669; margin: 4px 0; }
+        .logs-container { max-height: 200px; overflow-y: auto; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px; font-size: 11px; text-align: left; }
+        .log-item { padding: 6px 4px; border-bottom: 1px solid var(--border-color); }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: #0ea5e9; font-weight: bold; display: block; margin-bottom: 2px; }
+        .log-url { word-break: break-all; color: var(--text-color); }
+        
+        .hidden { display: none !important; }
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div class="container">
+        <div class="header">
+            <h2>⚡ Ultimate QR Studio</h2>
+            <button class="theme-toggle" onclick="toggleTheme()">🌙 मोड</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tabGenBtn" onclick="switchTab('generator')">QR बनाएँ</button>
+            <button class="tab-btn" id="tabScanBtn" onclick="switchTab('scanner')">स्कैनर</button>
+            <button class="tab-btn" id="tabDashBtn" onclick="switchTab('dashboard')">डैशबोर्ड (Stats)</button>
+        </div>
+
+        <!-- GENERATOR SECTION -->
+        <div id="generatorSection">
+            <div class="form-group">
+                <label>QR कोड का प्रकार</label>
+                <select id="qrType" onchange="toggleInputs()">
+                    <option value="url">वेबसाइट लिंक (Trackable)</option>
+                    <option value="wifi">वाई-फाई (WiFi)</option>
+                    <option value="email">ईमेल (Email)</option>
+                    <option value="phone">फ़ोन नंबर (Phone)</option>
+                </select>
+            </div>
+
+            <div id="inputGroup-url" class="form-group">
+                <label>लिंक दर्ज करें</label>
+                <input type="text" id="textInput" placeholder="https://example.com" oninput="generateQR()">
+            </div>
+
+            <div id="inputGroup-wifi" class="form-group hidden">
+                <label>WiFi विवरण</label>
+                <input type="text" id="wifiSSID" placeholder="SSID" oninput="generateQR()" style="margin-bottom:6px;">
+                <input type="text" id="wifiPassword" placeholder="Password" oninput="generateQR()">
+            </div>
+
+            <div id="inputGroup-email" class="form-group hidden">
+                <label>ईमेल विवरण</label>
+                <input type="email" id="emailTo" placeholder="recipient@example.com" oninput="generateQR()" style="margin-bottom:6px;">
+                <input type="text" id="emailSub" placeholder="Subject" oninput="generateQR()">
+            </div>
+
+            <div id="inputGroup-phone" class="form-group hidden">
+                <label>फ़ोन नंबर दर्ज करें</label>
+                <input type="tel" id="phoneInput" placeholder="+919876543210" oninput="generateQR()">
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>साइज़</label>
+                    <select id="qrSize" onchange="generateQR()">
+                        <option value="150">छोटा (150px)</option>
+                        <option value="200" selected>मध्यम (200px)</option>
+                        <option value="250">बड़ा (250px)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>रंग</label>
+                    <div class="color-pickers">
+                        <div class="color-picker-box"><input type="color" id="fgColor" value="#000000" onchange="generateQR()"></div>
+                        <div class="color-picker-box"><input type="color" id="bgColor" value="#ffffff" onchange="generateQR()"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>बीच में लोगो जोड़ें</label>
+                <input type="file" id="logoInput" accept="image/*" onchange="loadLogo(event)">
+            </div>
+
+            <div id="qrcode-container">
+                <div id="qrcode"><img id="qrLogoPreview" alt="Logo"></div>
+                <div class="btn-grid hidden" id="actionButtons">
+                    <button class="btn btn-secondary" onclick="downloadQR()">डाउनलोड</button>
+                    <button class="btn btn-dark" onclick="printQR()">प्रिंट</button>
+                    <button class="btn" onclick="copyQRImage()" style="grid-column: span 2;">क्लिपबोर्ड पर कॉपी करें</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCANNER SECTION -->
+        <div id="scannerSection" class="hidden">
+            <div class="form-group"><label>कैमरे से स्कैन करें</label><div id="reader"></div></div>
+            <div class="form-group" style="margin-top: 10px;"><label>परिणाम:</label><textarea id="scanResult" readonly></textarea></div>
+            <button class="btn btn-secondary" id="openLinkBtn" onclick="openScannedLink()" style="margin-top: 5px;" disabled>लिंक खोलें</button>
+        </div>
+
+        <!-- DASHBOARD SECTION -->
+        <div id="dashboardSection" class="hidden">
+            <div class="dashboard-card">
+                <label>कुल सफल स्कैन</label>
+                <div class="stat-number" id="totalScansCount">0</div>
+                <button class="btn btn-secondary" style="font-size: 11px; padding: 5px;" onclick="fetchDashboardData()">डेटा रिफ्रेश करें 🔄</button>
+            </div>
+
+            <div class="form-group">
+                <label>स्कैन हिस्ट्री (किस लिंक को किस समय स्कैन किया गया):</label>
+                <div class="logs-container" id="logsContainer">
+                    <i>डेटा लोड हो रहा है...</i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyzyJSefNOBgZw_raz2dbVrWlVPOss3pMqbi-AYE3ODdPl-XwrMrDVQx8nBlAq8iDTIvg/exec";
+        let logoDataUrl = "", html5QrCode = null;
+
+        function toggleTheme() {
+            let body = document.body, btn = document.querySelector(".theme-toggle");
+            if (body.getAttribute("data-theme") === "light") {
+                body.setAttribute("data-theme", "dark"); btn.innerText = "☀️ मोड";
+            } else {
+                body.setAttribute("data-theme", "light"); btn.innerText = "🌙 मोड";
+            }
+        }
+
+        function switchTab(tab) {
+            ['generatorSection', 'scannerSection', 'dashboardSection'].forEach(s => document.getElementById(s).classList.add("hidden"));
+            ['tabGenBtn', 'tabScanBtn', 'tabDashBtn'].forEach(b => document.getElementById(b).classList.remove("active"));
+            if (html5QrCode) html5QrCode.stop().catch(err => {});
+
+            if (tab === 'generator') { document.getElementById('generatorSection').classList.remove('hidden'); document.getElementById('tabGenBtn').classList.add('active'); }
+            else if (tab === 'scanner') { document.getElementById('scannerSection').classList.remove('hidden'); document.getElementById('tabScanBtn').classList.add('active'); startScanner(); }
+            else if (tab === 'dashboard') { document.getElementById('dashboardSection').classList.remove('hidden'); document.getElementById('tabDashBtn').classList.add('active'); fetchDashboardData(); }
+        }
+
+        function toggleInputs() {
+            let type = document.getElementById("qrType").value;
+            ['url', 'wifi', 'email', 'phone'].forEach(t => document.getElementById("inputGroup-" + t).classList.add("hidden"));
+            document.getElementById("inputGroup-" + type).classList.remove("hidden");
+            generateQR();
+        }
+
+        function getQRData() {
+            let type = document.getElementById("qrType").value, data = "";
+            if (type === "url") {
+                let u = document.getElementById("textInput").value.trim();
+                if (u) data = `${SCRIPT_URL}?url=${encodeURIComponent(u)}`;
+            } else if (type === "wifi") {
+                let s = document.getElementById("wifiSSID").value.trim(), p = document.getElementById("wifiPassword").value.trim();
+                if (s) data = `WIFI:T:WPA;S:${s};P:${p};;`;
+            } else if (type === "email") {
+                let e = document.getElementById("emailTo").value.trim(), sub = document.getElementById("emailSub").value.trim();
+                if (e) data = `mailto:${e}?subject=${encodeURIComponent(sub)}`;
+            } else if (type === "phone") {
+                let ph = document.getElementById("phoneInput").value.trim();
+                if (ph) data = `tel:${ph}`;
+            }
+            return data;
+        }
+
+        function generateQR() {
+            let data = getQRData(), size = parseInt(document.getElementById("qrSize").value);
+            let fg = document.getElementById("fgColor").value, bg = document.getElementById("bgColor").value;
+            let c = document.getElementById("qrcode"), btns = document.getElementById("actionButtons"), logo = document.getElementById("qrLogoPreview");
+            c.innerHTML = ""; c.appendChild(logo);
+            if (data) {
+                new QRCode(c, { text: data, width: size, height: size, colorDark: fg, colorLight: bg, correctLevel: QRCode.CorrectLevel.H });
+                if (logoDataUrl) { logo.src = logoDataUrl; logo.style.display = "block"; } else { logo.style.display = "none"; }
+                btns.classList.remove("hidden");
+            } else { btns.classList.add("hidden"); logo.style.display = "none"; }
+        }
+
+        function loadLogo(e) {
+            let f = e.target.files[0];
+            if (f) { let r = new FileReader(); r.onload = function(evt) { logoDataUrl = evt.target.result; generateQR(); }; r.readAsDataURL(f); }
+        }
+
+        function downloadQR() { let img = document.querySelector("#qrcode img"); if (img) { let a = document.createElement('a'); a.href = img.src; a.download = 'qrcode.png'; a.click(); } }
+        function printQR() {
+            let img = document.querySelector("#qrcode img"); if (!img) return;
+            let w = window.open(''); w.document.write(`<body style="text-align:center;"><img src="${img.src}" width="250"/></body>`);
+            w.document.close(); setTimeout(() => { w.print(); w.close(); }, 500);
+        }
+        async function copyQRImage() {
+            let img = document.querySelector("#qrcode img"); if (!img) return;
+            try { let res = await fetch(img.src); let blob = await res.blob(); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); alert("कॉपी हो गया!"); } catch(e) {}
+        }
+
+        // Fetch Detailed Logs for Dashboard
+        function fetchDashboardData() {
+            document.getElementById("totalScansCount").innerText = "...";
+            document.getElementById("logsContainer").innerHTML = "<i>लोड हो रहा है...</i>";
+
+            fetch(`${SCRIPT_URL}?action=dashboard`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("totalScansCount").innerText = data.count;
+                    let logsDiv = document.getElementById("logsContainer");
+                    
+                    if (data.logs.length === 0) {
+                        logsDiv.innerHTML = "<i>अभी तक कोई स्कैन नहीं हुआ है।</i>";
+                    } else {
+                        logsDiv.innerHTML = "";
+                        data.logs.forEach(log => {
+                            let formattedDate = new Date(log.timestamp).toLocaleString('hi-IN');
+                            let div = document.createElement("div");
+                            div.className = "log-item";
+                            div.innerHTML = `<span class="log-time">🕒 ${formattedDate}</span><span class="log-url">🔗 ${log.url}</span>`;
+                            logsDiv.appendChild(div);
+                        });
+                    }
+                })
+                .catch(err => {
+                    document.getElementById("totalScansCount").innerText = "Error";
+                    document.getElementById("logsContainer").innerHTML = "<i>डेटा लोड करने में विफल।</i>";
+                });
+        }
+
+        let scannedTextStorage = "";
+        function startScanner() {
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 180, height: 180 } }, msg => {
+                scannedTextStorage = msg; document.getElementById("scanResult").value = msg; document.getElementById("openLinkBtn").removeAttribute("disabled");
+            }, err => {}).catch(e => {});
+        }
+        function openScannedLink() { if (scannedTextStorage) window.open(scannedTextStorage, '_blank'); }
+    </script>
+</body>
+</html>
